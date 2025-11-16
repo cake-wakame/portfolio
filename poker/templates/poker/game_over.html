@@ -1,0 +1,77 @@
+{% extends 'poker/base.html' %}
+
+{% block title %}ゲームオーバー - ポーカーゲーム{% endblock %}
+
+{% block extra_style %}
+<style>
+    .game-over-container {
+        text-align: center;
+        padding: 50px 20px;
+    }
+    
+    .game-over-title {
+        font-size: 4em;
+        color: #e74c3c;
+        text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+        margin-bottom: 30px;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+    
+    .game-over-message {
+        font-size: 1.5em;
+        margin: 30px 0;
+        background: rgba(255,255,255,0.1);
+        padding: 20px;
+        border-radius: 10px;
+    }
+    
+    .restart-button {
+        font-size: 1.3em;
+        padding: 20px 40px;
+        background: #27ae60;
+        color: white;
+        text-decoration: none;
+        display: inline-block;
+        border-radius: 10px;
+        margin-top: 30px;
+        transition: all 0.3s;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    
+    .restart-button:hover {
+        background: #2ecc71;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="game-over-container">
+    <div class="game-over-title">GAME OVER</div>
+    
+    <div class="game-over-message">
+        <p>💸 持ち点がなくなりました</p>
+        <p style="margin-top: 20px;">お疲れ様でした！</p>
+    </div>
+    
+    <a href="{% url 'poker:reset_game' %}" class="restart-button">
+        🔄 もう一度プレイする
+    </a>
+    
+    <div style="margin-top: 40px;">
+        <a href="{% url 'poker:hand_ranking' %}" style="color: #fff; text-decoration: underline;">
+            役一覧を確認する
+        </a>
+    </div>
+</div>
+{% endblock %}

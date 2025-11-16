@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ポーカーゲーム{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid rgba(255,255,255,0.2);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .nav-links {
+            padding: 0px 0px 0px 4rem;
+            margin-top: 15px;
+        }
+        
+        .nav-links a {
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 20px ;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            margin: 0 0px;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+        
+        .nav-links a:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .card {
+            width: 100px;
+            height: 140px;
+            background: white;
+            border-radius: 8px;
+            display: inline-block;
+            margin: 5px;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        
+        .card.selected {
+            border: 3px solid #ffd700;
+            transform: translateY(-15px);
+        }
+        
+        .card-content {
+            padding: 10px;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        
+        .card-suit {
+            font-size: 3em;
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+        }
+        
+        .hearts, .diamonds {
+            color: #e74c3c;
+        }
+        
+        .spades, .clubs {
+            color: #2c3e50;
+        }
+        
+        .card-back {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+        }
+        
+        button {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        button:hover {
+            background: #2ecc71;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+        
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .chips-display {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.5em;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        
+        .game-area {
+            background: rgba(0,0,0,0.3);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        
+        input[type="number"] {
+            padding: 10px;
+            font-size: 1.2em;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            width: 150px;
+        }
+        
+        .result-message {
+            font-size: 2em;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            text-align: center;
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        .result-win {
+            background: #27ae60;
+        }
+        
+        .result-lose {
+            background: #e74c3c;
+        }
+        
+        .result-draw {
+            background: #f39c12;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .hand-name {
+            font-size: 1.3em;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            display: inline-block;
+        }
+    </style>
+    {% block extra_style %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🃏 ポーカーゲーム</h1>
+            <div class="nav-links">
+                <a href="{% url 'poker:index' %}">ゲーム</a>
+                <a href="{% url 'poker:hand_ranking' %}">役一覧</a>
+                <a href="/game" class="">← ゲーム選択に戻る</a>
+            </div>
+        </header>
+        
+        {% block content %}{% endblock %}
+    </div>
+    
+    {% block extra_script %}{% endblock %}
+</body>
+</html>

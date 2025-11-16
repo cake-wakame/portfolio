@@ -1,0 +1,113 @@
+{% extends 'poker/base.html' %}
+
+{% block title %}役一覧 - ポーカーゲーム{% endblock %}
+
+{% block extra_style %}
+<style>
+    .ranking-table {
+        width: 100%;
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 20px 0;
+    }
+    
+    .ranking-row {
+        display: grid;
+        grid-template-columns: 80px 250px 1fr 300px;
+        padding: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        align-items: center;
+        transition: background 0.3s;
+    }
+    
+    .ranking-row:hover {
+        background: rgba(255,255,255,0.05);
+    }
+    
+    .ranking-row:last-child {
+        border-bottom: none;
+    }
+    
+    .ranking-header {
+        background: rgba(255,255,255,0.2);
+        font-weight: bold;
+        font-size: 1.1em;
+    }
+    
+    .rank-number {
+        font-size: 2em;
+        font-weight: bold;
+        color: #ffd700;
+    }
+    
+    .hand-name {
+        font-size: 1.3em;
+        font-weight: bold;
+    }
+    
+    .hand-description {
+        font-size: 1em;
+        color: rgba(255,255,255,0.8);
+    }
+    
+    .hand-example {
+        font-family: monospace;
+        font-size: 1.2em;
+        background: rgba(0,0,0,0.3);
+        padding: 10px;
+        border-radius: 5px;
+    }
+    
+    @media (max-width: 768px) {
+        .ranking-row {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 30px;">
+    <h2>ポーカーの役一覧</h2>
+    <p style="color: rgba(255,255,255,0.8); margin-top: 10px;">強い順に並んでいます</p>
+</div>
+
+<div class="ranking-table">
+    <div class="ranking-row ranking-header">
+        <div>順位</div>
+        <div>役名</div>
+        <div>説明</div>
+        <div>例</div>
+    </div>
+    
+    {% for ranking in rankings %}
+    <div class="ranking-row">
+        <div class="rank-number">{{ ranking.rank }}</div>
+        <div class="hand-name">{{ ranking.name }}</div>
+        <div class="hand-description">{{ ranking.description }}</div>
+        <div class="hand-example">{{ ranking.example }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+<div style="text-align: center; margin-top: 30px;">
+    <a href="{% url 'poker:index' %}" style="display: inline-block; padding: 15px 30px; background: #27ae60; color: white; text-decoration: none; border-radius: 8px; font-size: 1.1em; transition: all 0.3s;">
+        ゲームに戻る
+    </a>
+</div>
+
+<div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin-top: 30px;">
+    <h3 style="margin-bottom: 15px;">📝 ゲームルール</h3>
+    <ul style="list-style-position: inside; line-height: 1.8;">
+        <li>最初に持ち点1000でスタートします</li>
+        <li>各ゲームで好きな額をベットできます</li>
+        <li>5枚の手札が配られ、交換したいカードを選択できます（0〜5枚）</li>
+        <li>カード交換後、コンピュータと役を比較して勝敗が決まります</li>
+        <li>勝てばベット額と同額を獲得、負ければベット額を失います</li>
+        <li>引き分けの場合はベット額はそのままです</li>
+        <li>持ち点が0になったらゲームオーバーです</li>
+    </ul>
+</div>
+{% endblock %}

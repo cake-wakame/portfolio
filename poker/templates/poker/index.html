@@ -1,0 +1,215 @@
+{% extends 'poker/base.html' %}
+
+{% block content %}
+<div style="text-align: center;">
+    <div class="chips-display">
+        💰 持ち点: <span id="chips-amount">{{ chips }}</span>
+    </div>
+
+</div>
+
+
+<div class="game-area">
+    <!-- ベット段階 -->
+    <div id="betting-phase" {% if game_state != 'betting' %}style="display:none;"{% endif %}>
+        <h2 style="text-align: center; margin-bottom: 20px;">ベット額を入力してください</h2>
+        <div style="text-align: center;">
+            <form id="bet-form" onsubmit="return placeBet(event);">
+                {% csrf_token %}
+                <input type="number" id="bet-input" name="bet" min="1" max="{{ chips }}" value="10" required>
+                <button type="submit">ベット</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- カード交換段階 -->
+    <div id="exchange-phase" {% if game_state != 'exchange' %}style="display:none;"{% endif %}>
+        <h2 style="text-align: center; margin-bottom: 20px;">交換するカードを選んでください（最大5枚）</h2>
+        <p style="text-align: center; margin-bottom: 20px;">ベット額: <strong>{{ bet_amount }}</strong></p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <h3>あなたの手札</h3>
+            <div id="player-cards" style="margin: 20px 0;">
+                {% for card in player_hand %}
+                <div class="card {% if card.suit == '♥' or card.suit == '♦' %}hearts{% else %}spades{% endif %}" 
+                     data-index="{{ forloop.counter0 }}"
+                     onclick="toggleCardSelection(this)">
+                    <div class="card-content">{{ card.rank }}</div>
+                    <div class="card-suit">{{ card.suit }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div style="text-align: center;">
+            <button onclick="exchangeCards()">カード交換</button>
+            <button onclick="exchangeCards(true)" style="background: #3498db; margin-left: 10px;">交換しない</button>
+        </div>
+    </div>
+
+    <!-- 結果表示段階 -->
+    <div id="result-phase" {% if game_state != 'result' %}style="display:none;"{% endif %}>
+        <div style="text-align: center;">
+            <h2>結果</h2>
+            
+            <div style="margin: 30px 0;">
+                <h3>コンピュータの手札</h3>
+                <div id="computer-cards" style="margin: 20px 0;">
+                    <!-- JavaScript で表示 -->
+                </div>
+                <div id="computer-hand-name" class="hand-name"></div>
+            </div>
+            
+            <div style="margin: 30px 0;">
+                <h3>あなたの手札</h3>
+                <div id="result-player-cards" style="margin: 20px 0;">
+                    <!-- JavaScript で表示 -->
+                </div>
+                <div id="player-hand-name" class="hand-name"></div>
+            </div>
+            
+            <div id="result-message" class="result-message"></div>
+            
+            <button onclick="newGame()">新しいゲーム</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_script %}
+<script>
+const selectedCards = new Set();
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function toggleCardSelection(cardElement) {
+    const index = parseInt(cardElement.dataset.index);
+    
+    if (selectedCards.has(index)) {
+        selectedCards.delete(index);
+        cardElement.classList.remove('selected');
+    } else {
+        if (selectedCards.size < 5) {
+            selectedCards.add(index);
+            cardElement.classList.add('selected');
+        }
+    }
+}
+
+function placeBet(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    
+    fetch("{% url 'poker:place_bet' %}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('betting-phase').style.display = 'none';
+            document.getElementById('exchange-phase').style.display = 'block';
+        } else {
+            alert(data.error);
+        }
+    });
+    
+    return false;
+}
+
+function exchangeCards(skipExchange = false) {
+    const cardsToExchange = skipExchange ? [] : Array.from(selectedCards);
+    
+    const formData = new FormData();
+    formData.append('cards', JSON.stringify(cardsToExchange));
+    
+    fetch("{% url 'poker:exchange_cards' %}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showResult(data);
+        }
+    });
+}
+
+function showResult(data) {
+    document.getElementById('exchange-phase').style.display = 'none';
+    document.getElementById('result-phase').style.display = 'block';
+    
+    // コンピュータの手札表示
+    const computerCardsDiv = document.getElementById('computer-cards');
+    computerCardsDiv.innerHTML = '';
+    data.computer_hand.forEach(card => {
+        const cardDiv = document.createElement('div');
+        const suitClass = (card.suit === '♥' || card.suit === '♦') ? 'hearts' : 'spades';
+        cardDiv.className = `card ${suitClass}`;
+        cardDiv.innerHTML = `
+            <div class="card-content">${card.rank}</div>
+            <div class="card-suit">${card.suit}</div>
+        `;
+        computerCardsDiv.appendChild(cardDiv);
+    });
+    
+    // プレイヤーの手札表示
+    const playerCardsDiv = document.getElementById('result-player-cards');
+    playerCardsDiv.innerHTML = '';
+    data.player_hand.forEach(card => {
+        const cardDiv = document.createElement('div');
+        const suitClass = (card.suit === '♥' || card.suit === '♦') ? 'hearts' : 'spades';
+        cardDiv.className = `card ${suitClass}`;
+        cardDiv.innerHTML = `
+            <div class="card-content">${card.rank}</div>
+            <div class="card-suit">${card.suit}</div>
+        `;
+        playerCardsDiv.appendChild(cardDiv);
+    });
+    
+    // 役名表示
+    document.getElementById('computer-hand-name').textContent = `役: ${data.computer_hand_name}`;
+    document.getElementById('player-hand-name').textContent = `役: ${data.player_hand_name}`;
+    
+    // 結果メッセージ
+    const resultDiv = document.getElementById('result-message');
+    resultDiv.textContent = data.result;
+    
+    if (data.result.includes('勝ち')) {
+        resultDiv.className = 'result-message result-win';
+    } else if (data.result.includes('負け')) {
+        resultDiv.className = 'result-message result-lose';
+    } else {
+        resultDiv.className = 'result-message result-draw';
+    }
+    
+    // チップ数更新
+    document.getElementById('chips-amount').textContent = data.chips;
+}
+
+function newGame() {
+    window.location.href = "{% url 'poker:index' %}?new_game=1";
+}
+</script>
+{% endblock %}
