@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>横スクロールアクション</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'MS UI Gothic', 'Hiragino Sans', sans-serif;
+            background: #87CEEB;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .game-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        #gameCanvas {
+            border: 3px solid #333;
+            display: block;
+            background: #87CEEB;
+        }
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+            color: #333;
+        }
+        .controls h3 {
+            margin-bottom: 10px;
+        }
+        .controls p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .info {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-around;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .back-button {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div class="info">
+            <div>スコア: <span id="score">0</span></div>
+            <div>ライフ: <span id="lives">3</span></div>
+        </div>
+        <div class="controls">
+            <h3>🎮 操作方法</h3>
+            <p>← → : 移動 | スペース : ジャンプ | Z : ショット | R : リスタート</p>
+        </div>
+        <div style="text-align: center;">
+            <a href="/game" class="back-button">← ゲーム選択に戻る</a>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // ゲーム状態
+        let score = 0;
+        let lives = 3;
+        let gameOver = false;
+        let scrollOffset = 0;
+        
+        // プレイヤー
+        const player = {
+            x: 100,
+            y: 300,
+            width: 30,
+            height: 40,
+            velocityY: 0,
+            velocityX: 0,
+            speed: 4,
+            jumpPower: 12,
+            gravity: 0.5,
+            onGround: false,
+            color: '#0066FF',
+            facing: 1, // 1: 右, -1: 左
+            canShoot: true,
+            shootCooldown: 0
+        };
+        
+        // 弾
+        const bullets = [];
+        
+        // プラットフォーム
+        const platforms = [
+            { x: 0, y: 360, width: 300, height: 40 },
+            { x: 350, y: 300, width: 150, height: 40 },
+            { x: 550, y: 240, width: 150, height: 40 },
+            { x: 750, y: 300, width: 200, height: 40 },
+            { x: 1000, y: 250, width: 150, height: 40 },
+            { x: 1200, y: 200, width: 150, height: 40 },
+            { x: 1400, y: 300, width: 200, height: 40 },
+            { x: 1650, y: 250, width: 150, height: 40 },
+            { x: 1850, y: 200, width: 150, height: 40 },
+            { x: 2050, y: 300, width: 300, height: 40 }
+        ];
+        
+        // コイン
+        const coins = [
+            { x: 400, y: 250, collected: false },
+            { x: 600, y: 190, collected: false },
+            { x: 850, y: 250, collected: false },
+            { x: 1050, y: 200, collected: false },
+            { x: 1250, y: 150, collected: false },
+            { x: 1500, y: 250, collected: false },
+            { x: 1900, y: 150, collected: false },
+            { x: 2150, y: 250, collected: false }
+        ];
+        
+        // 敵
+        const enemies = [
+            { x: 400, y: 260, width: 30, height: 30, speed: 2, direction: 1, alive: true, hp: 2 },
+            { x: 800, y: 260, width: 30, height: 30, speed: 2, direction: 1, alive: true, hp: 2 },
+            { x: 1250, y: 160, width: 30, height: 30, speed: 2, direction: 1, alive: true, hp: 2 },
+            { x: 1700, y: 210, width: 30, height: 30, speed: 2, direction: 1, alive: true, hp: 2 }
+        ];
+        
+        // キー入力
+        const keys = {};
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            keys[e.key.toLowerCase()] = true;
+            
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (player.onGround && !gameOver) {
+                    player.velocityY = -player.jumpPower;
+                    player.onGround = false;
+                }
+            }
+            
+            if ((e.key === 'z' || e.key === 'Z') && !gameOver) {
+                if (player.canShoot) {
+                    shoot();
+                }
+            }
+            
+            if (e.key === 'r' || e.key === 'R') {
+                if (gameOver) {
+                    resetGame();
+                }
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+            keys[e.key.toLowerCase()] = false;
+        });
+        
+        function shoot() {
+            const bulletY = player.y + 20; // アームキャノンの高さ
+            const bulletX = player.facing > 0 
+                ? player.x + player.width + 5 + scrollOffset  // 右向き：右端のキャノンから
+                : player.x - 15 + scrollOffset;                // 左向き：左端のキャノンから
+            
+            bullets.push({
+                x: bulletX,
+                y: bulletY,
+                width: 15,
+                height: 10,
+                speed: 8,
+                direction: player.facing
+            });
+            player.canShoot = false;
+            player.shootCooldown = 15; // クールダウン（フレーム数）
+        }
+        
+        function resetGame() {
+            player.x = 100;
+            player.y = 300;
+            player.velocityY = 0;
+            player.velocityX = 0;
+            player.facing = 1;
+            scrollOffset = 0;
+            score = 0;
+            lives = 3;
+            gameOver = false;
+            bullets.length = 0;
+            
+            coins.forEach(coin => coin.collected = false);
+            enemies.forEach(enemy => {
+                enemy.direction = 1;
+                enemy.alive = true;
+                enemy.hp = 2;
+            });
+        }
+        
+        function update() {
+            if (gameOver) return;
+            
+            // クールダウン処理
+            if (!player.canShoot) {
+                player.shootCooldown--;
+                if (player.shootCooldown <= 0) {
+                    player.canShoot = true;
+                }
+            }
+            
+            // プレイヤーの移動
+            player.velocityX = 0;
+            if (keys['ArrowRight']) {
+                player.velocityX = player.speed;
+                player.facing = 1;
+            }
+            if (keys['ArrowLeft']) {
+                player.velocityX = -player.speed;
+                player.facing = -1;
+            }
+            
+            player.x += player.velocityX;
+            
+            // スクロール
+            if (player.x > 400 && scrollOffset < 2000) {
+                scrollOffset += player.velocityX;
+                player.x = 400;
+            }
+            
+            // 重力
+            player.velocityY += player.gravity;
+            player.y += player.velocityY;
+            
+            // 地面との衝突
+            player.onGround = false;
+            platforms.forEach(platform => {
+                if (player.x + player.width > platform.x - scrollOffset &&
+                    player.x < platform.x - scrollOffset + platform.width &&
+                    player.y + player.height >= platform.y &&
+                    player.y + player.height <= platform.y + platform.height &&
+                    player.velocityY >= 0) {
+                    player.y = platform.y - player.height;
+                    player.velocityY = 0;
+                    player.onGround = true;
+                }
+            });
+            
+            // 画面外に落ちた
+            if (player.y > canvas.height) {
+                lives--;
+                if (lives <= 0) {
+                    gameOver = true;
+                } else {
+                    player.x = 100;
+                    player.y = 300;
+                    player.velocityY = 0;
+                    scrollOffset = 0;
+                }
+            }
+            
+            // 弾の更新
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].x += bullets[i].speed * bullets[i].direction;
+                
+                // 画面外に出た弾を削除
+                if (bullets[i].x < -scrollOffset || bullets[i].x > 3000) {
+                    bullets.splice(i, 1);
+                }
+            }
+            
+            // 弾と敵の衝突判定
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                for (let j = 0; j < enemies.length; j++) {
+                    if (enemies[j].alive) {
+                        if (bullets[i].x + bullets[i].width > enemies[j].x &&
+                            bullets[i].x < enemies[j].x + enemies[j].width &&
+                            bullets[i].y + bullets[i].height > enemies[j].y &&
+                            bullets[i].y < enemies[j].y + enemies[j].height) {
+                            
+                            enemies[j].hp--;
+                            if (enemies[j].hp <= 0) {
+                                enemies[j].alive = false;
+                                score += 200;
+                            }
+                            bullets.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // コインの収集
+            coins.forEach(coin => {
+                if (!coin.collected) {
+                    const coinSize = 20;
+                    if (player.x + player.width > coin.x - scrollOffset &&
+                        player.x < coin.x - scrollOffset + coinSize &&
+                        player.y + player.height > coin.y &&
+                        player.y < coin.y + coinSize) {
+                        coin.collected = true;
+                        score += 100;
+                    }
+                }
+            });
+            
+            // 敵の移動
+            enemies.forEach(enemy => {
+                if (!enemy.alive) return;
+                
+                enemy.x += enemy.speed * enemy.direction;
+                
+                // プラットフォームの端で反転
+                let onPlatform = false;
+                platforms.forEach(platform => {
+                    if (enemy.x + enemy.width > platform.x &&
+                        enemy.x < platform.x + platform.width &&
+                        enemy.y + enemy.height >= platform.y &&
+                        enemy.y + enemy.height <= platform.y + 10) {
+                        onPlatform = true;
+                    }
+                });
+                
+                if (!onPlatform || enemy.x < 0 || enemy.x > 2400) {
+                    enemy.direction *= -1;
+                }
+                
+                // 敵との衝突
+                if (player.x + player.width > enemy.x - scrollOffset &&
+                    player.x < enemy.x - scrollOffset + enemy.width &&
+                    player.y + player.height > enemy.y &&
+                    player.y < enemy.y + enemy.height) {
+                    lives--;
+                    if (lives <= 0) {
+                        gameOver = true;
+                    } else {
+                        player.x = 100;
+                        player.y = 300;
+                        player.velocityY = 0;
+                        scrollOffset = 0;
+                    }
+                }
+            });
+            
+            // ゴール判定
+            if (scrollOffset > 1950) {
+                score += 1000;
+                gameOver = true;
+            }
+        }
+        
+        function draw() {
+            // 背景
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 雲
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.beginPath();
+            ctx.arc(150 - (scrollOffset * 0.1) % 900, 50, 30, 0, Math.PI * 2);
+            ctx.arc(180 - (scrollOffset * 0.1) % 900, 50, 40, 0, Math.PI * 2);
+            ctx.arc(210 - (scrollOffset * 0.1) % 900, 50, 30, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(550 - (scrollOffset * 0.1) % 900, 80, 35, 0, Math.PI * 2);
+            ctx.arc(585 - (scrollOffset * 0.1) % 900, 80, 45, 0, Math.PI * 2);
+            ctx.arc(620 - (scrollOffset * 0.1) % 900, 80, 35, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // プラットフォーム
+            ctx.fillStyle = '#8B4513';
+            platforms.forEach(platform => {
+                ctx.fillRect(
+                    platform.x - scrollOffset,
+                    platform.y,
+                    platform.width,
+                    platform.height
+                );
+                
+                // 草
+                ctx.fillStyle = '#228B22';
+                ctx.fillRect(
+                    platform.x - scrollOffset,
+                    platform.y,
+                    platform.width,
+                    5
+                );
+                ctx.fillStyle = '#8B4513';
+            });
+            
+            // コイン
+            coins.forEach(coin => {
+                if (!coin.collected) {
+                    const coinX = coin.x - scrollOffset;
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc(coinX + 10, coin.y + 10, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#FFA500';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+            
+            // 敵
+            enemies.forEach(enemy => {
+                if (!enemy.alive) return;
+                
+                const enemyX = enemy.x - scrollOffset;
+                ctx.fillStyle = '#8B008B';
+                ctx.fillRect(enemyX, enemy.y, enemy.width, enemy.height);
+                
+                // 目
+                ctx.fillStyle = 'white';
+                ctx.fillRect(enemyX + 5, enemy.y + 8, 8, 8);
+                ctx.fillRect(enemyX + 17, enemy.y + 8, 8, 8);
+                ctx.fillStyle = 'red';
+                ctx.fillRect(enemyX + 8, enemy.y + 11, 3, 3);
+                ctx.fillRect(enemyX + 20, enemy.y + 11, 3, 3);
+                
+                // HPバー
+                if (enemy.hp < 2) {
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(enemyX, enemy.y - 5, enemy.width * (enemy.hp / 2), 3);
+                }
+            });
+            
+            // 弾
+            bullets.forEach(bullet => {
+                const bulletX = bullet.x - scrollOffset;
+                ctx.fillStyle = '#FFFF00';
+                ctx.fillRect(bulletX, bullet.y, bullet.width, bullet.height);
+                
+                // 弾の光
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+                ctx.fillRect(bulletX - 2, bullet.y - 2, bullet.width + 4, bullet.height + 4);
+            });
+            
+            // プレイヤー
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // ヘルメット
+            ctx.fillStyle = '#003399';
+            ctx.fillRect(player.x + 5, player.y + 2, 20, 15);
+            
+            // 顔
+            ctx.fillStyle = '#FFE4C4';
+            ctx.fillRect(player.x + 7, player.y + 12, 16, 15);
+            
+            // 目
+            ctx.fillStyle = 'black';
+            if (player.facing > 0) {
+                ctx.fillRect(player.x + 15, player.y + 17, 4, 4);
+            } else {
+                ctx.fillRect(player.x + 11, player.y + 17, 4, 4);
+            }
+            
+            // アームキャノン（向いている方向）
+            ctx.fillStyle = '#0066FF';
+            if (player.facing > 0) {
+                ctx.fillRect(player.x + player.width - 5, player.y + 20, 10, 8);
+            } else {
+                ctx.fillRect(player.x - 5, player.y + 20, 10, 8);
+            }
+            
+            // ゲームオーバー
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                
+                if (scrollOffset > 1950) {
+                    ctx.fillText('ゴール！', canvas.width / 2, canvas.height / 2 - 40);
+                } else {
+                    ctx.fillText('ゲームオーバー', canvas.width / 2, canvas.height / 2 - 40);
+                }
+                
+                ctx.font = 'bold 32px Arial';
+                ctx.fillText(`スコア: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+                
+                ctx.font = '24px Arial';
+                ctx.fillText('Rキーでリスタート', canvas.width / 2, canvas.height / 2 + 60);
+            }
+            
+            // UI更新
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+        }
+        
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+    </script>
+</body>
+</html>
