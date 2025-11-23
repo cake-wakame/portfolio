@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: Cubiks-2048
+    env: docker
+    branch: master
+    plan: free
+    dockerfilePath: Dockerfile
+    autoDeploy: true
