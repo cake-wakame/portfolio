@@ -1,1 +1,6 @@
-Django==5.1.1
+# 必要最低限の推奨パッケージ
+Django>=4.2
+gunicorn
+whitenoise
+psycopg2-binary
+# 既存の requirements.txt にある項目があればマージしてください
